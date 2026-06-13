@@ -1,0 +1,43 @@
+# Datos sensibles — NO subir los CSV de ENDES
+data/
+*.csv
+
+# Outputs generados automáticamente
+output/
+*.png
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Entornos virtuales
+venv/
+env/
+.env
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Modelos entrenados grandes
+*.pkl
+*.joblib
+*.h5
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
