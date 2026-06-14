@@ -420,9 +420,8 @@ print("=" * 90)
 
 import numpy as np
 import pandas as pd
-import time, warnings, json, os
+import time, warnings
 warnings.filterwarnings("ignore")
-import joblib
 
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score, GridSearchCV
 from sklearn.pipeline import Pipeline
@@ -644,92 +643,6 @@ print(f"  Version ponderada Test-AUC: {df_pon.loc[mejor,'test_auc']*100:.1f}%")
 print("=" * 90)
 
 print("\n  Tablas disponibles: df_sin (sin ponderar) y df_pon (ponderado)")
-# ---------------------------------------------------------------------------
-# 05.8 — SERIALIZACION DEL MODELO FINAL
-#   Guarda el pipeline completo del mejor modelo (imputacion + escalado +
-#   clasificador) en un archivo .pkl usando joblib, listo para ser cargado
-#   por la aplicacion Streamlit de inferencia individual.
-#   Tambien guarda metadata JSON con PREDICTORES, umbrales y metricas.
-# ---------------------------------------------------------------------------
-print("\n" + "-" * 90)
-print("05.8 — SERIALIZACION DEL MODELO FINAL")
-print("-" * 90)
-
-# Directorio de salida (funciona en Colab y local)
-out_dir = "modelo_anemia"
-os.makedirs(out_dir, exist_ok=True)
-
-# 1) Guardar el pipeline completo del mejor modelo (sin ponderar)
-modelo_path = os.path.join(out_dir, "pipeline_rf_anemia.pkl")
-joblib.dump(modelos_fit[mejor], modelo_path)
-print(f"  Pipeline guardado  : {modelo_path}")
-
-# 2) Guardar metadata para que la app Streamlit no dependa del codigo fuente
-metadata = {
-    "modelo_nombre"   : mejor,
-    "predictores"     : list(PREDICTORES),
-    "n_predictores"   : len(PREDICTORES),
-    "auc_sin_ponderar": round(float(df_sin.loc[mejor, 'test_auc']) * 100, 1),
-    "auc_ponderado"   : round(float(df_pon.loc[mejor, 'test_auc']) * 100, 1),
-    "sensibilidad"    : round(float(df_sin.loc[mejor, 'sensibilidad']) * 100, 1),
-    "especificidad"   : round(float(df_sin.loc[mejor, 'especificidad']) * 100, 1),
-    "brecha_cv_test"  : round(float(df_sin.loc[mejor, 'brecha_pp']), 1),
-    "umbral_decision" : 0.5,
-    "prevalencia_train": round(float(ytr.mean()) * 100, 1),
-    # Descripcion clinica de cada predictor para el formulario de la app
-    "descripcion_predictores": {
-        "edad_meses"             : ("Edad del niño (meses)",           "continua",   0, 59,   1),
-        "sexo_nino"              : ("Sexo del niño (1=masculino)",      "binaria",    0, 1,    0),
-        "stunting"               : ("Desnutrición crónica",             "binaria",    0, 1,    0),
-        "wasting"                : ("Desnutrición aguda",               "binaria",    0, 1,    0),
-        "altitud_msnm"           : ("Altitud de residencia (msnm)",     "continua",   0, 5000, 1),
-        "area_urbana"            : ("Área urbana (1=urbano)",           "binaria",    0, 1,    1),
-        "region"                 : ("Región (código 1-25)",             "continua",   1, 25,   1),
-        "nro_ninos_h"            : ("Nº de niños en el hogar",          "continua",   1, 15,   1),
-        "indice_riqueza"         : ("Índice de riqueza (1=pobre, 5=rico)","continua", 1, 5,    3),
-        "agua_mejorada"          : ("Acceso a agua mejorada",           "binaria",    0, 1,    1),
-        "san_mejorado"           : ("Saneamiento mejorado",             "binaria",    0, 1,    1),
-        "comb_limpio"            : ("Combustible limpio",               "binaria",    0, 1,    1),
-        "educ_madre"             : ("Educación de la madre (0-3)",      "continua",   0, 3,    2),
-        "madre_trabaja"          : ("Madre trabaja",                    "binaria",    0, 1,    0),
-        "madre_sis"              : ("Madre afiliada al SIS",            "binaria",    0, 1,    1),
-        "edad_madre"             : ("Edad de la madre (años)",          "continua",  15, 49,  28),
-        "hb_materna"             : ("Hemoglobina materna (g/dL)",       "continua",   0, 20,  12),
-        "ctrl_prenatal_temprano" : ("Control prenatal 1er trimestre",   "binaria",    0, 1,    1),
-        "sin_ctrl_prenatal"      : ("Sin control prenatal",             "binaria",    0, 1,    0),
-        "hierro_emb"             : ("Hierro durante el embarazo",       "binaria",    0, 1,    1),
-        "bajo_peso_nacer"        : ("Bajo peso al nacer",               "binaria",    0, 1,    0),
-        "diarrea"                : ("Diarrea reciente",                 "binaria",    0, 1,    0),
-        "tos"                    : ("Tos reciente",                     "binaria",    0, 1,    0),
-        "ira"                    : ("IRA reciente",                     "binaria",    0, 1,    0),
-        "vitamina_a"             : ("Suplemento vitamina A",            "binaria",    0, 1,    0),
-        "antiparasit"            : ("Antiparasitario reciente",         "binaria",    0, 1,    0),
-        "sis_nino"               : ("Niño afiliado al SIS",             "binaria",    0, 1,    1),
-        "hierro_7d"              : ("Hierro últimos 7 días",            "binaria",    0, 1,    0),
-        "micronut_minsa"         : ("Micronutrientes MINSA",            "binaria",    0, 1,    0),
-        "cred"                   : ("Control CRED al día",              "binaria",    0, 1,    1),
-        "hb_materna_falta"       : ("Hb materna no medida",            "binaria",    0, 1,    0),
-    }
-}
-
-meta_path = os.path.join(out_dir, "metadata.json")
-with open(meta_path, "w", encoding="utf-8") as f:
-    json.dump(metadata, f, ensure_ascii=False, indent=2)
-print(f"  Metadata guardada  : {meta_path}")
-
-# 3) Descargar en Colab
-try:
-    from google.colab import files
-    files.download(modelo_path)
-    files.download(meta_path)
-    print("  Descarga iniciada en Colab.")
-except Exception:
-    print("  (Fuera de Colab: archivos en el directorio de trabajo.)")
-
-print(f"\n  Archivos listos para la app Streamlit:")
-print(f"    {modelo_path}")
-print(f"    {meta_path}")
-
 print("  PASO 05 COMPLETADO.")
 
 
@@ -906,4 +819,376 @@ except Exception:
 
 print("\n" + "=" * 90)
 print("PASO 06 COMPLETADO — Pipeline finalizado (3 modelos).")
+print("=" * 90)
+
+##########################################################################################
+# =============================================================================
+# PIPELINE v3 — PASO 07: PREDICCIÓN INDIVIDUAL + ENVÍO DE RESULTADOS POR CORREO
+#
+# Ejecutar DESPUÉS del Paso 06.
+#
+# CONFIGURACIÓN ÚNICA (solo la primera vez):
+#  Edita las dos líneas marcadas con  <-- CAMBIA ESTO  aquí abajo.
+#  Después, el formulario solo pedirá el correo destinatario.
+#
+# Cómo obtener la contraseña de aplicación de Gmail:
+#   1. Ir a: https://myaccount.google.com/security
+#   2. Activar verificación en 2 pasos
+#   3. Buscar "Contraseñas de aplicaciones"
+#   4. Generar una para "Correo / Otro dispositivo" → código de 16 caracteres
+# =============================================================================
+
+# ╔══════════════════════════════════════════════════════════╗
+# ║  EDITA SOLO ESTAS DOS LÍNEAS — una sola vez             ║
+GMAIL_REMITENTE  = "tu_correo@gmail.com"    # <-- CAMBIA ESTO
+GMAIL_APP_PASS   = "xxxx xxxx xxxx xxxx"    # <-- CAMBIA ESTO (contraseña de aplicación)
+# ╚══════════════════════════════════════════════════════════╝
+
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import smtplib, os
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+from datetime import datetime
+import ipywidgets as widgets
+from IPython.display import display, clear_output, HTML
+
+assert 'modelos_fit' in dir(), "Ejecuta primero el Paso 05"
+assert 'mejor'       in dir(), "Ejecuta primero el Paso 05"
+assert 'PREDICTORES' in dir(), "Ejecuta primero los Pasos 01-04"
+
+print("=" * 90)
+print("PASO 07 — PREDICCIÓN INDIVIDUAL + ENVÍO DE RESULTADOS")
+print("=" * 90)
+
+# =============================================================================
+# 07.1 — FORMULARIO DE PREDICCIÓN INDIVIDUAL
+# =============================================================================
+print("\n07.1 — Ingresa los valores del niño/a para predecir riesgo de anemia:\n")
+
+style  = {'description_width': '220px'}
+layout = widgets.Layout(width='480px')
+
+# ── Variables del niño ───────────────────────────────────────────────────────
+w_edad      = widgets.BoundedIntText(value=24, min=0, max=59, step=1,
+                description='Edad del niño (meses):', style=style, layout=layout)
+w_sexo      = widgets.RadioButtons(options=[('Masculino',1),('Femenino',0)],
+                description='Sexo del niño:', style=style, layout=layout)
+w_stunting  = widgets.RadioButtons(options=[('Sí (talla baja)',1),('No',0)],
+                description='Desnutrición crónica (stunting):', style=style, layout=layout)
+w_wasting   = widgets.RadioButtons(options=[('Sí (peso bajo)',1),('No',0)],
+                description='Desnutrición aguda (wasting):', style=style, layout=layout)
+
+# ── Variables del hogar ──────────────────────────────────────────────────────
+w_altitud   = widgets.BoundedIntText(value=500, min=0, max=5500, step=100,
+                description='Altitud (msnm):', style=style, layout=layout)
+w_urbano    = widgets.RadioButtons(options=[('Urbano',1),('Rural',0)],
+                description='Área de residencia:', style=style, layout=layout)
+w_region    = widgets.BoundedIntText(value=1, min=1, max=25, step=1,
+                description='Región (cód. ENDES 1-25):', style=style, layout=layout)
+w_ninos     = widgets.BoundedIntText(value=2, min=0, max=15, step=1,
+                description='Nº niños <5 en el hogar:', style=style, layout=layout)
+w_riqueza   = widgets.RadioButtons(
+                options=[('Muy pobre',1),('Pobre',2),('Medio',3),('Rico',4),('Muy rico',5)],
+                description='Índice de riqueza:', style=style, layout=layout)
+
+# ── Agua / saneamiento ───────────────────────────────────────────────────────
+w_agua      = widgets.RadioButtons(options=[('Mejorada',1),('No mejorada',0)],
+                description='Fuente de agua:', style=style, layout=layout)
+w_san       = widgets.RadioButtons(options=[('Mejorado',1),('No mejorado',0)],
+                description='Saneamiento:', style=style, layout=layout)
+w_comb      = widgets.RadioButtons(options=[('Limpio (gas/electricidad)',1),('Leña/carbón',0)],
+                description='Combustible cocina:', style=style, layout=layout)
+
+# ── Variables de la madre ────────────────────────────────────────────────────
+w_educ      = widgets.RadioButtons(
+                options=[('Sin educación',0),('Primaria',1),('Secundaria',2),('Superior',3)],
+                description='Educación de la madre:', style=style, layout=layout)
+w_trabaja   = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='¿La madre trabaja?:', style=style, layout=layout)
+w_sis_m     = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Madre tiene SIS:', style=style, layout=layout)
+w_edad_m    = widgets.BoundedIntText(value=27, min=15, max=49, step=1,
+                description='Edad de la madre (años):', style=style, layout=layout)
+w_hb_m      = widgets.BoundedFloatText(value=120.0, min=70.0, max=200.0, step=1.0,
+                description='Hemoglobina materna (g/dL x10):', style=style, layout=layout)
+w_ctrl_temp = widgets.RadioButtons(options=[('Sí (1er trimestre)',1),('No',0)],
+                description='Control prenatal temprano:', style=style, layout=layout)
+w_sin_ctrl  = widgets.RadioButtons(options=[('Sin control',1),('Con control',0)],
+                description='Sin control prenatal:', style=style, layout=layout)
+w_hb_falta  = widgets.RadioButtons(options=[('No disponible',1),('Disponible',0)],
+                description='Hemoglobina materna faltante:', style=style, layout=layout)
+
+# ── Gestación ────────────────────────────────────────────────────────────────
+w_hierro_e  = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Hierro durante embarazo:', style=style, layout=layout)
+w_bajo_peso = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Bajo peso al nacer:', style=style, layout=layout)
+
+# ── Salud infantil ───────────────────────────────────────────────────────────
+w_diarrea   = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Diarrea reciente:', style=style, layout=layout)
+w_tos       = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Tos reciente:', style=style, layout=layout)
+w_ira       = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='IRA (infec. respiratoria):', style=style, layout=layout)
+w_vit_a     = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Vitamina A (últimos 6 meses):', style=style, layout=layout)
+w_anti      = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Antiparasitario:', style=style, layout=layout)
+
+# ── SIS y suplementación ─────────────────────────────────────────────────────
+w_sis_n     = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Niño tiene SIS:', style=style, layout=layout)
+w_hierro_7  = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Hierro jarabe (últimos 7 días):', style=style, layout=layout)
+w_micronut  = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Micronutrientes MINSA (7 días):', style=style, layout=layout)
+w_cred      = widgets.RadioButtons(options=[('Sí',1),('No',0)],
+                description='Control CRED:', style=style, layout=layout)
+
+# ── Salida de predicción ─────────────────────────────────────────────────────
+out_pred = widgets.Output()
+btn_predecir = widgets.Button(
+    description='🔍 Predecir riesgo de anemia',
+    button_style='primary',
+    layout=widgets.Layout(width='280px', height='40px')
+)
+_ultima_pred = {}
+
+def construir_fila():
+    vals = {
+        'edad_meses':             w_edad.value,
+        'sexo_nino':              w_sexo.value,
+        'stunting':               w_stunting.value,
+        'wasting':                w_wasting.value,
+        'altitud_msnm':           w_altitud.value,
+        'area_urbana':            w_urbano.value,
+        'region':                 w_region.value,
+        'nro_ninos_h':            w_ninos.value,
+        'indice_riqueza':         w_riqueza.value,
+        'agua_mejorada':          w_agua.value,
+        'san_mejorado':           w_san.value,
+        'comb_limpio':            w_comb.value,
+        'educ_madre':             w_educ.value,
+        'madre_trabaja':          w_trabaja.value,
+        'madre_sis':              w_sis_m.value,
+        'edad_madre':             w_edad_m.value,
+        'hb_materna':             w_hb_m.value,
+        'ctrl_prenatal_temprano': w_ctrl_temp.value,
+        'sin_ctrl_prenatal':      w_sin_ctrl.value,
+        'hierro_emb':             w_hierro_e.value,
+        'bajo_peso_nacer':        w_bajo_peso.value,
+        'diarrea':                w_diarrea.value,
+        'tos':                    w_tos.value,
+        'ira':                    w_ira.value,
+        'vitamina_a':             w_vit_a.value,
+        'antiparasit':            w_anti.value,
+        'sis_nino':               w_sis_n.value,
+        'hierro_7d':              w_hierro_7.value,
+        'micronut_minsa':         w_micronut.value,
+        'cred':                   w_cred.value,
+        'hb_materna_falta':       w_hb_falta.value,
+    }
+    return pd.DataFrame([{p: vals[p] for p in PREDICTORES}])
+
+def hacer_prediccion(b):
+    with out_pred:
+        clear_output(wait=True)
+        fila      = construir_fila()
+        prob      = modelos_fit[mejor].predict_proba(fila)[0, 1]
+        clase     = int(prob >= 0.5)
+        probs_3   = {m: modelos_fit[m].predict_proba(fila)[0, 1] for m in modelos_fit}
+
+        _ultima_pred['prob']    = prob
+        _ultima_pred['clase']   = clase
+        _ultima_pred['probs_3'] = probs_3
+        _ultima_pred['fila']    = fila
+
+        # ── Gráfico ──────────────────────────────────────────────────────────
+        color = '#e74c3c' if clase == 1 else '#27ae60'
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+        # Panel izq — barra de riesgo
+        ax = axes[0]
+        ax.barh([''], [prob],        color=color,    height=0.4)
+        ax.barh([''], [1 - prob],    left=[prob],    color='#ecf0f1', height=0.4)
+        ax.axvline(0.5, color='#7f8c8d', linestyle='--', linewidth=1.5, label='Umbral 0.5')
+        ax.set_xlim(0, 1)
+        ax.set_xlabel('Probabilidad de anemia', fontsize=11)
+        ax.set_title(
+            f'{"⚠ CON ANEMIA" if clase==1 else "✓ SIN ANEMIA"}  —  {mejor}\n'
+            f'Probabilidad: {prob*100:.1f}%',
+            fontsize=12, fontweight='bold', color=color)
+        ax.legend(loc='lower right', fontsize=9)
+        ax.set_yticks([])
+        for s in ['top','right','left']: ax.spines[s].set_visible(False)
+
+        # Panel der — comparación 3 modelos
+        ax2   = axes[1]
+        noms  = list(probs_3.keys())
+        vals  = [probs_3[m]*100 for m in noms]
+        cols  = ['#e74c3c' if v >= 50 else '#27ae60' for v in vals]
+        bars  = ax2.barh(noms, vals, color=cols, height=0.5)
+        ax2.axvline(50, color='#7f8c8d', linestyle='--', linewidth=1.5, label='Umbral 50%')
+        ax2.set_xlim(0, 100)
+        ax2.set_xlabel('Probabilidad de anemia (%)', fontsize=11)
+        ax2.set_title('Comparación: 3 modelos', fontsize=12, fontweight='bold')
+        for bar, val in zip(bars, vals):
+            ax2.text(bar.get_width()+1, bar.get_y()+bar.get_height()/2,
+                     f'{val:.1f}%', va='center', fontsize=10)
+        ax2.legend(loc='lower right', fontsize=9)
+        for s in ['top','right']: ax2.spines[s].set_visible(False)
+
+        plt.tight_layout()
+        plt.savefig('grafico_4_prediccion_individual.png', dpi=150, bbox_inches='tight')
+        plt.show()
+        _ultima_pred['grafico'] = 'grafico_4_prediccion_individual.png'
+
+        resumen = (
+            f"\n  Resultado: {'CON ANEMIA ⚠' if clase==1 else 'SIN ANEMIA ✓'}"
+            f"  |  Prob: {prob*100:.1f}%  |  Modelo: {mejor}\n"
+            + "".join(f"    {m:<25} {p*100:.1f}%\n" for m, p in probs_3.items())
+        )
+        print(resumen)
+        _ultima_pred['resumen_texto'] = resumen
+
+btn_predecir.on_click(hacer_prediccion)
+
+# ── Layout por secciones ─────────────────────────────────────────────────────
+def sec(titulo, wlist):
+    return widgets.VBox(
+        [widgets.HTML(f'<b style="font-size:13px;color:#2c3e50">── {titulo} ──</b>')] + wlist,
+        layout=widgets.Layout(border='1px solid #bdc3c7', padding='10px', margin='4px 0')
+    )
+
+display(HTML('<h3 style="color:#2c3e50">🩺 Predicción de Anemia Infantil</h3>'))
+display(sec('Niño/a',           [w_edad, w_sexo, w_stunting, w_wasting]))
+display(sec('Hogar',            [w_altitud, w_urbano, w_region, w_ninos, w_riqueza]))
+display(sec('Agua / Saneam.',   [w_agua, w_san, w_comb]))
+display(sec('Madre',            [w_educ, w_trabaja, w_sis_m, w_edad_m, w_hb_m,
+                                  w_ctrl_temp, w_sin_ctrl, w_hb_falta]))
+display(sec('Gestación',        [w_hierro_e, w_bajo_peso]))
+display(sec('Salud infantil',   [w_diarrea, w_tos, w_ira, w_vit_a, w_anti]))
+display(sec('SIS / Suplement.', [w_sis_n, w_hierro_7, w_micronut, w_cred]))
+display(btn_predecir, out_pred)
+
+
+# =============================================================================
+# 07.2 — FORMULARIO DE ENVÍO POR CORREO (solo pide el destinatario)
+# =============================================================================
+print("\n" + "=" * 90)
+print("07.2 — Enviar resultados por correo")
+print("=" * 90)
+
+style2  = {'description_width': '180px'}
+layout2 = widgets.Layout(width='440px')
+
+w_dest      = widgets.Text(value='', placeholder='destinatario@correo.com',
+                description='Enviar a:', style=style2, layout=layout2)
+w_incl_pred = widgets.Checkbox(value=True,
+                description='Incluir predicción individual (si se realizó)',
+                style={'description_width': 'initial'})
+out_email   = widgets.Output()
+
+btn_enviar  = widgets.Button(
+    description='📧 Enviar correo',
+    button_style='success',
+    layout=widgets.Layout(width='180px', height='40px')
+)
+
+def enviar_correo(b):
+    with out_email:
+        clear_output(wait=True)
+        dest = w_dest.value.strip()
+        if not dest:
+            print("  ✗ Ingresa un correo destinatario.")
+            return
+        if not GMAIL_REMITENTE or GMAIL_REMITENTE == "tu_correo@gmail.com":
+            print("  ✗ Edita las variables GMAIL_REMITENTE y GMAIL_APP_PASS al inicio del Paso 07.")
+            return
+
+        # ── Cuerpo ───────────────────────────────────────────────────────────
+        fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        orden_e    = df_sin['test_auc'].sort_values(ascending=False).index
+        lineas     = [
+            f"  {m:<25} AUC: {df_sin.loc[m,'test_auc']*100:.1f}%  "
+            f"Sens: {df_sin.loc[m,'sensibilidad']*100:.1f}%  "
+            f"Esp: {df_sin.loc[m,'especificidad']*100:.1f}%  "
+            f"Brecha: {df_sin.loc[m,'brecha_pp']:+.1f}pp"
+            for m in orden_e
+        ]
+        cuerpo = (
+            f"Pipeline v3 — Predicción de Anemia Infantil (ENDES 2024 - Perú)\n"
+            f"Ejecutado el: {fecha_hora}\n{'='*65}\n\n"
+            f"RESULTADOS DE LOS MODELOS (sin ponderar)\n{'-'*65}\n"
+            + "\n".join(lineas) +
+            f"\n\nMEJOR MODELO: {mejor}\n"
+            f"  Test-AUC      : {df_sin.loc[mejor,'test_auc']*100:.1f}%\n"
+            f"  CV-AUC        : {df_sin.loc[mejor,'cv_auc']*100:.1f}%\n"
+            f"  Brecha        : {df_sin.loc[mejor,'brecha_pp']:+.1f}pp\n"
+            f"  Sensibilidad  : {df_sin.loc[mejor,'sensibilidad']*100:.1f}%\n"
+            f"  Especificidad : {df_sin.loc[mejor,'especificidad']*100:.1f}%\n"
+            f"  AUC ponderado : {df_pon.loc[mejor,'test_auc']*100:.1f}%\n"
+        )
+        if w_incl_pred.value and _ultima_pred:
+            cuerpo += f"\nPREDICCIÓN INDIVIDUAL\n{'-'*65}\n{_ultima_pred.get('resumen_texto','')}\n"
+        cuerpo += "\n--\nGenerado por Pipeline v3 — ENDES 2024 Perú"
+
+        # ── Adjuntos ─────────────────────────────────────────────────────────
+        msg = MIMEMultipart()
+        msg['From']    = GMAIL_REMITENTE
+        msg['To']      = dest
+        msg['Subject'] = f"[ENDES 2024] Resultados ML Anemia Infantil — {fecha_hora}"
+        msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
+
+        graficos_adj = ['grafico_1_curvas_roc.png',
+                        'grafico_2_importancia.png',
+                        'grafico_3_matriz_confusion.png']
+        if w_incl_pred.value and _ultima_pred.get('grafico'):
+            graficos_adj.append(_ultima_pred['grafico'])
+
+        adjuntos_ok = []
+        for ruta in graficos_adj:
+            if os.path.exists(ruta):
+                with open(ruta, 'rb') as f:
+                    parte = MIMEBase('application', 'octet-stream')
+                    parte.set_payload(f.read())
+                encoders.encode_base64(parte)
+                parte.add_header('Content-Disposition', f'attachment; filename="{ruta}"')
+                msg.attach(parte)
+                adjuntos_ok.append(ruta)
+
+        # ── Enviar ───────────────────────────────────────────────────────────
+        print(f"  Enviando a {dest} ...")
+        try:
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as srv:
+                srv.login(GMAIL_REMITENTE, GMAIL_APP_PASS)
+                srv.sendmail(GMAIL_REMITENTE, dest, msg.as_string())
+            print(f"\n  ✓ Correo enviado a: {dest}")
+            print(f"  Adjuntos: {len(adjuntos_ok)} archivo(s)")
+            for a in adjuntos_ok:
+                print(f"    • {a}")
+        except smtplib.SMTPAuthenticationError:
+            print("  ✗ Error de autenticación.\n"
+                  "    Verifica GMAIL_REMITENTE y GMAIL_APP_PASS al inicio del Paso 07.\n"
+                  "    Recuerda: usa contraseña de APLICACIÓN (16 chars), no tu clave normal.\n"
+                  "    https://myaccount.google.com/security")
+        except Exception as e:
+            print(f"  ✗ Error: {e}")
+
+btn_enviar.on_click(enviar_correo)
+
+display(HTML('<h3 style="color:#2c3e50">📧 Enviar resultados por correo</h3>'))
+display(w_dest, w_incl_pred, btn_enviar, out_email)
+
+print("\n" + "=" * 90)
+print("PASO 07 LISTO.")
+print("  1. Completa el formulario y pulsa '🔍 Predecir riesgo de anemia'")
+print("  2. Escribe el correo destino y pulsa '📧 Enviar correo'")
 print("=" * 90)
